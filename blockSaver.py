@@ -73,8 +73,9 @@ def retriveNewBlock(bridgeContract):
             blockHeader = RLPEncodeBlockHeader(w3,blockNumber)
 
             txt_hash = bridgeContract.functions.saveBlock(blockHeader).transact()
-            web3.eth.wait_for_transaction_receipt(txt_hash)
-            
+            txn_receipt = web3.eth.wait_for_transaction_receipt(txt_hash)
+            print(txn_receipt)
+		
             received = False
             #wait for the NewBlockAdded event that certificate that the block header is saved 
             while not received:
