@@ -56,7 +56,7 @@ def main():
 
     #deploy contract
     contractAddress = deploy_contract(web3, contract_interface)
-    print('requester has started!\nAddress\t:{}'.format(contractAddress))
+    print('requester has started!\nAddress\t: {}'.format(contractAddress))
     bridgeContract = web3.eth.contract(address = contractAddress, abi=contract_interface["abi"])
     
     print('usage:\n 1) address for the proof\n 2) key for the proof\n 3) block id') 
