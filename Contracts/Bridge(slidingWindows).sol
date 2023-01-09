@@ -43,9 +43,9 @@ contract Bridge {
     //internal state
     Request[] private requests; //arrived requests 
     mapping(uint => StateProofVerifier.BlockHeader) private lightBlockchain; //block headers of C2 chain
-    uint windSize;
-    uint[] window; 
-    uint counter = 0;
+    uint windSize; //size of the window
+    uint[] window; //array for take the ids of the block that now are in the window 
+    uint counter = 0; //conter which counts the number of C2 blocks arrived in the bridge contract
 
     constructor(uint _windSize) public {
         windSize = _windSize;
