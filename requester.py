@@ -6,7 +6,7 @@ def compile_source_file(file_path):
 	
     with open(file_path, 'r') as f: 
         source = f.read()
-	#restituisce la tupla [abi,bin] per il primo elemento del dizionario e cioè i dati relativi  a tryOnChain	
+	#returns the [abi,bin] tuple for the first element of the dictionary, i.e. the data related to Bridge	
     return compile_source(source, output_values=["abi", "bin"], solc_version="0.6.0").get('<stdin>:Bridge') 
 
 def deploy_contract(w3, contract_interface):
