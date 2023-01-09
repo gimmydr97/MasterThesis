@@ -180,7 +180,7 @@ contract Bridge {
         //update the counter of block inserted
         counter = counter + 1;
         
-        emit NewBlockAdded(bHeader.hash, bHeader.stateRootHash, bHeader.number, bHeader.timestamp,counter%windSize, toDelate);
+        emit NewBlockAdded(bHeader.hash, bHeader.stateRootHash, bHeader.number, bHeader.timestamp,(counter-1)%windSize, toDelate);
 
         return  lightBlockchain[bHeader.number].number;
     }
