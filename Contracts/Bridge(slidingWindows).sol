@@ -43,9 +43,16 @@ contract Bridge {
     //internal state
     Request[] private requests; //arrived requests 
     mapping(uint => StateProofVerifier.BlockHeader) private lightBlockchain; //block headers of C2 chain
-    uint windSize = 10;
-    uint[10] window; 
+    uint windSize;
+    uint[] window; 
     uint counter = 0;
+
+    constructor(uint _windSize) public {
+        windSize = _windSize;
+        window = new uint[](windSize);    
+    }
+     
+    
 
     /**
     *  @dev This event is emitted whenever a new request is created
