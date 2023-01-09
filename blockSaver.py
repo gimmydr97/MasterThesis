@@ -8,7 +8,7 @@ def compile_source_file(file_path):
 	
     with open(file_path, 'r') as f: 
         source = f.read()
-	#restituisce la tupla [abi,bin] per il primo elemento del dizionario e cioè i dati relativi  a tryOnChain	
+	#returns the [abi,bin] tuple for the first element of the dictionary, i.e. the data related to Bridge
     return compile_source(source, output_values=["abi", "bin"], solc_version="0.6.0").get('<stdin>:Bridge') 
 
 #w3 for retrive the block of c2 (in this example is the etherium blockhain) and save they as a Lightweight blockchain on the contract
@@ -39,7 +39,7 @@ def RLPEncodeBlockHeader(w3,blockId):
         block.extraData,
         block.mixHash,
         block.nonce,
-        #HexBytes(hex(block.baseFeePerGas)) //parametro aggiunto all'header tra il bloccco 12000000 e 13000000
+        #HexBytes(hex(block.baseFeePerGas)) #parameter added to the header between the block 12000000 and 13000000
         #block.size
         #block.totalDifficulty
     ]
