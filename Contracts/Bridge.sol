@@ -11,12 +11,6 @@ contract Bridge {
     using RLPReader for RLPReader.RLPItem;
     using RLPReader for bytes;
 
-
-    // Counts the total number of requests.
-    uint private requestCounter;
-    // Counts the number of served requests.
-    uint private servedCounter;
-
     struct BlockHeader{
         bytes32 hash;   //hash of the block used to verify its correctness 
         bytes RLPHeader; //rlp encoding of the block header to be checked
@@ -41,9 +35,49 @@ contract Bridge {
     }
 
     //internal state
-    Request[] private requests; //arrived requests 
-    mapping(uint => StateProofVerifier.BlockHeader) private lightBlockchain; //block headers of C2 chain
+    // Counts the total number of requests.
+    uint private requestCounter;
+    // Counts the number of served requests.
+    uint private servedCounter;
+    //arrived requests
+    Request[] private requests; 
+
+    uint arrSize; //size for the lightBlockchain array
+    uint counter = 0; //conter which counts the number of C2 blocks arrived in the bridge contract
+    uint lastKey = 0; //variable that save the block number of the last block saved
+    StateProofVerifier.BlockHeader[] private lightBlockchain; //array for save the block of C2
+
+    constructor(uint _arrSize) public {
+        arrSize = _arrSize;
+        //initialize to 0 the arrSize position of lightBlockchain
+        for(uint i = 0; i < _arrSize; i++){
+            lightBlockchain.push(StateProofVerifier.BlockHeader(0,0,0,0));
+        }
+        
+    }
     
+    function saveBlock(BlockHeader memory _blockHeader ) public returns (uint) {
+        
+        //chack that the block to be added is ok
+        StateProofVerifier.BlockHeader memory bHeader = verifyBlockHeader(_blockHeader);
+
+        uint toDelate = 0;
+        //if the block that you are trying to save in lightBlockchain is newer than the one in counter%arrSize psition
+            if(bHeader.number > lightBlockchain[counter%arrSize].number){
+                //save in toDelate variable the that position
+                toDelate = lightBlockchain[counter%arrSize].number;
+                //update the array in that position with the new block 
+                lightBlockchain[counter%arrSize] = bHeader;
+                //update counter
+                counter = counter +1 ;
+                //update lastKey
+                lastKey = bHeader.number;
+            }
+
+        emit NewBlockAdded(bHeader.hash, bHeader.stateRootHash, bHeader.number, bHeader.timestamp,(counter-1)%arrSize, toDelate);
+
+        return  lightBlockchain[counter%arrSize].number;
+    }
 
     /**
     *  @dev This event is emitted whenever a new request is created
@@ -60,11 +94,11 @@ contract Bridge {
     *  @dev This event is emitted whenever a logged request is served by the verify function
     */
     event RequestServed(
-    uint indexed requestId, // Request identifier
-    address account, // Address of C2 contract
-    uint key, // Numeric identifier of the variable
-    uint blockId, // Identifier of C2 block
-    uint256 reply // Response received by C2 node
+        uint indexed requestId, // Request identifier
+        address account, // Address of C2 contract
+        uint key, // Numeric identifier of the variable
+        uint blockId, // Identifier of C2 block
+        uint256 reply // Response received by C2 node
     );
 
     /** 
@@ -72,10 +106,12 @@ contract Bridge {
     *  and is added to the lightBlockchain of the contract
     */
     event NewBlockAdded(
-    bytes32 hash,
-    bytes32 stateRootHash,
-    uint256 number,
-    uint256 timestamp
+        bytes32 hash,
+        bytes32 stateRootHash,
+        uint256 number,
+        uint256 timestamp,
+        uint256 pos,
+        uint256 delblock
     );
 
     /** 
@@ -151,19 +187,7 @@ contract Bridge {
     *  @param _blockHeader the structure that contain the hash of the blockHeader and the header's RLP encode
     *  @return the identifier of the blockHash saved.
     */
-    function saveBlock(BlockHeader memory _blockHeader ) public returns (uint) {
-        
-        //chack that the block to be added is ok
-        StateProofVerifier.BlockHeader memory bHeader = verifyBlockHeader(_blockHeader);
-
-        //add the checked block header to the lightBlockchain
-        lightBlockchain[bHeader.number] = bHeader;
-
-        emit NewBlockAdded(bHeader.hash, bHeader.stateRootHash, bHeader.number, bHeader.timestamp);
-
-        return  lightBlockchain[bHeader.number].number;
-    }
-
+    
     /**
     *  @dev verification that see if the block is present in contract's lightBlockchain
     *  @param _requestId id of the request that need for save the request as rejected if the blockId is not present in lightBlockchain
@@ -172,18 +196,22 @@ contract Bridge {
     */
     function blockIsPresent(uint _requestId, uint _blockId ) public returns (bool){
 
-        bool isPresent = true;
-
         //verify that the requested block is present in contract's lightBlockchain
-        if (lightBlockchain[_blockId].number == 0){
+        bool isPresent = true;
+        //difference between last saved block and the numer of the block required by the verificatio
+        uint diff = lastKey - _blockId;
+
+        //if lastKey < _blockId  (and so the required block is bigger than the last inserted block in the lightblockchain) or
+        //the required block is too outdated  or
+        //the required block is in the range of the arraySize but not saved in the lightBlockchain (missing block)
+        if(diff < 0  || diff >= arrSize || lightBlockchain[((counter-1)%arrSize)-diff].number != _blockId){  
             emit BlockNotFound(_blockId);
             isPresent = false;
-
             //The request is saved as served but rejected with response = 0
             requests[_requestId].served = true;
             requests[_requestId].response = 0;
         }
-
+        
         return isPresent;
     }
 
@@ -216,11 +244,12 @@ contract Bridge {
 
         //parse the account proof
         RLPReader.RLPItem[] memory accountProof = parseProofToRlpReader(_stateProof.accountProof);
-
+        //difference between last saved block and the numer of the block required by the verification 
+        uint diff = lastKey - _blockId;
         //verify the account proof
         StateProofVerifier.Account memory account = 
             StateProofVerifier.extractAccountFromProof(keccak256(abi.encodePacked(_stateProof.account)),
-                                                       lightBlockchain[_blockId].stateRootHash,
+                                                       lightBlockchain[((counter-1)%arrSize)-diff].stateRootHash,
                                                        accountProof);
         return account;
     }
@@ -252,7 +281,7 @@ contract Bridge {
     *  @return true If all verifications are passed
     */
     function verify(uint _requestId, StateProof memory _stateProof, uint _blockId )
-            public returns (bool){
+        public returns (bool){
         
         //check that the block[_blockId] is present in the "lightBlockchain" of the contract 
         if(blockIsPresent(_requestId, _blockId) == true){
@@ -274,7 +303,30 @@ contract Bridge {
 
         return false;
 
-    }
+    } 
+
+    /*//non funziona perchè con get_proof è come se si facesse una foto ad un certo momento(rappresentato dal blocco corrente)
+    //la foto sarà quindi coerente solo a quel momento quindi non possiamo verificarla senza avere l'info sul momento 
+    function verify(uint _requestId, StateProof memory _stateProof)
+        public returns (bool){
+        
+        
+            //check account proof
+            StateProofVerifier.Account memory account = verifyAccountProof(_stateProof, lastKey);
+
+            //check storage proof
+            StateProofVerifier.SlotValue memory slotValue = verifiyStorageProof(_stateProof);
+            
+            //The proof is accepted: first we record this fact on the blockchain.
+            requests[_requestId].served = true;
+            requests[_requestId].response = slotValue.value;
+
+            // Then we trigger a `RequestServed` event to notify all possible listeners.
+            emit RequestServed(_requestId, requests[_requestId].account,requests[_requestId].key, 
+                                requests[_requestId].blockId, requests[_requestId].response);
+            return true;
+
+    }*/
 
     /**
     *  @dev auxiliary function that parse a generic proof in a list of RLP encode
