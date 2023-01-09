@@ -252,27 +252,29 @@ contract Bridge {
     *  @return true If all verifications are passed
     */
     function verify(uint _requestId, StateProof memory _stateProof, uint _blockId )
-            public returns (bool){
+        public returns (bool){
         
         //check that the block[_blockId] is present in the "lightBlockchain" of the contract 
-        require(blockIsPresent(_requestId, _blockId) == true, "block is not present in the lightBlockchain");
+        if(blockIsPresent(_requestId, _blockId) == true){
+            //check account proof
+            StateProofVerifier.Account memory account = verifyAccountProof(_stateProof, _blockId);
 
-        //check account proof
-        StateProofVerifier.Account memory account = verifyAccountProof(_stateProof, _blockId);
+            //check storage proof
+            StateProofVerifier.SlotValue memory slotValue = verifiyStorageProof(_stateProof);
+            
+            //The proof is accepted: first we record this fact on the blockchain.
+            requests[_requestId].served = true;
+            requests[_requestId].response = slotValue.value;
 
-        //check storage proof
-        StateProofVerifier.SlotValue memory slotValue = verifiyStorageProof(_stateProof);
-        
-        //The proof is accepted: first we record this fact on the blockchain.
-        requests[_requestId].served = true;
-        requests[_requestId].response = slotValue.value;
+            // Then we trigger a `RequestServed` event to notify all possible listeners.
+            emit RequestServed(_requestId, requests[_requestId].account,requests[_requestId].key, 
+                                requests[_requestId].blockId, requests[_requestId].response);
+            return true;
+        }
 
-        // Then we trigger a `RequestServed` event to notify all possible listeners.
-        emit RequestServed(_requestId, requests[_requestId].account,requests[_requestId].key, 
-                            requests[_requestId].blockId, requests[_requestId].response);
-        return true;
+        return false;
 
-    } 
+    }
 
     /**
     *  @dev auxiliary function that parse a generic proof in a list of RLP encode
