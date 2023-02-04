@@ -56,6 +56,11 @@ contract Bridge {
         
     }
     
+    /**
+    *  @dev if the blockHeader passed pass the verification the block is saved in the contract
+    *  @param _blockHeader the structure that contain the hash of the blockHeader and the header's RLP encode
+    *  @return the identifier of the blockHash saved.
+    */
     function saveBlock(BlockHeader memory _blockHeader ) public returns (uint) {
         
         //chack that the block to be added is ok
@@ -181,12 +186,6 @@ contract Bridge {
         requestCounter++;
         return requestId;
     }
-
-    /**
-    *  @dev if the blockHeader passed pass the verification the block is saved in the contract
-    *  @param _blockHeader the structure that contain the hash of the blockHeader and the header's RLP encode
-    *  @return the identifier of the blockHash saved.
-    */
     
     /**
     *  @dev verification that see if the block is present in contract's lightBlockchain
