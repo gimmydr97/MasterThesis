@@ -188,7 +188,7 @@ contract Bridge {
     }
     
     /**
-    *  @dev verification that see if the block is present in contract's lightBlockchain
+    *  @dev check if the block is present in contract's lightBlockchain
     *  @param _requestId id of the request that need for save the request as rejected if the blockId is not present in lightBlockchain
     *  @param _blockId identifier of the block that represent the update status of the requested variable
     *  @return true if the block is saved false otherwise
